@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bus Oil Log</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1565c0">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#222}
+  .wrap{max-width:900px;margin:auto;padding:16px}
+  h1{margin:0 0 12px;font-size:22px}
+  .card{background:#fff;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px #0002}
+  form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  label{font-size:13px;display:flex;flex-direction:column;gap:4px}
+  input{padding:9px;font-size:16px;border:1px solid #bbb;border-radius:6px}
+  button{padding:10px 14px;font-size:15px;border:0;border-radius:6px;background:#1565c0;color:#fff;cursor:pointer}
+  button.g{background:#2e7d32} button.x{background:#c62828;padding:4px 8px;font-size:12px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border:1px solid #ccc;padding:7px;text-align:right} th{background:#e3eaf2}
+  td:first-child,th:first-child,td.n,th.n{text-align:left}
+  tfoot td{font-weight:bold;background:#f0f0f0}
+  .scroll{overflow-x:auto}
+  .ph{display:none}
+  @media print{ body{background:#fff} .noprint{display:none} .card{box-shadow:none;padding:0} .ph{display:block} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚌 Bus Oil (Diesel) Log</h1>
+
+  <div class="card noprint">
+    <form id="f">
+      <label>Date <input type="date" id="date" required></label>
+      <label>Km oodirukku <input type="number" id="km" step="0.1" min="0" required></label>
+      <label>Oil (litres) <input type="number" id="litres" step="0.01" min="0" required></label>
+      <label>Amount ₹ (optional) <input type="number" id="amount" step="0.01" min="0"></label>
+      <label>Note (optional) <input type="text" id="note"></label>
+      <label>&nbsp;<button type="submit">➕ Save</button></label>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="bar noprint">
+      <button onclick="window.print()">🖨️ Print / PDF</button>
+      <button class="g" onclick="downloadCSV()">⬇️ Download (Excel)</button>
+    </div>
+    <div class="ph"><h2>Bus Oil Report</h2></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Date</th><th>Km</th><th>Oil (L)</th><th>Amount ₹</th><th>Km/L</th><th class="n">Note</th><th class="noprint"></th></tr></thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr id="tot"></tr></tfoot>
+    </table>
+    </div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let data = [];
+$('date').valueAsDate = new Date();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = d => d.split('-').reverse().join('-');
+const mileage = e => e.litres ? (e.km / e.litres).toFixed(2) : '-';
+
+async function load() {
+  try { data = await (await fetch('/api/entries')).json(); } catch { alert('Server connect aagala'); }
+  render();
+}
+function render() {
+  $('rows').innerHTML = data.map(e => `<tr>
+    <td>${fmt(e.date)}</td><td>${e.km}</td><td>${e.litres}</td><td>${e.amount || ''}</td>
+    <td>${mileage(e)}</td><td class="n">${esc(e.note || '')}</td>
+    <td class="noprint"><button class="x" onclick="del('${e._id}')">✕</button></td></tr>`).join('');
+  const km = data.reduce((a, e) => a + e.km, 0), l = data.reduce((a, e) => a + e.litres, 0), amt = data.reduce((a, e) => a + (e.amount || 0), 0);
+  $('tot').innerHTML = `<td>Total</td><td>${km.toFixed(1)}</td><td>${l.toFixed(2)}</td><td>${amt.toFixed(2)}</td><td>${l ? (km / l).toFixed(2) : '-'}</td><td></td><td class="noprint"></td>`;
+}
+$('f').onsubmit = async ev => {
+  ev.preventDefault();
+  const body = { date: $('date').value, km: +$('km').value, litres: +$('litres').value, amount: +$('amount').value || 0, note: $('note').value };
+  const r = await fetch('/api/entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) return alert('Save aagala');
+  ['km', 'litres', 'amount', 'note'].forEach(i => $(i).value = '');
+  load();
+};
+async function del(id) {
+  if (!confirm('Delete pannanuma?')) return;
+  await fetch('/api/entries/' + id, { method: 'DELETE' }); load();
+}
+function downloadCSV() {
+  const rows = [['Date', 'Km', 'Oil (L)', 'Amount', 'Km/L', 'Note'],
+    ...data.map(e => [fmt(e.date), e.km, e.litres, e.amount || '', mileage(e), '"' + (e.note || '').replace(/"/g, '""') + '"'])];
+  const blob = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'bus-oil-log.csv'; a.click();
+}
+load();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
