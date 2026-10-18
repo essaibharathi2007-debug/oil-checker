@@ -22,7 +22,6 @@
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{border:1px solid #ccc;padding:7px;text-align:right} th{background:#e3eaf2}
   td:first-child,th:first-child,td.n,th.n{text-align:left} td:first-child{white-space:nowrap}
-  tfoot td{font-weight:bold;background:#f0f0f0}
   .scroll{overflow-x:auto}
   .ph{display:none}
   @media print{ body{background:#fff} .noprint{display:none} .card{box-shadow:none;padding:0} .ph{display:block} }
@@ -56,7 +55,6 @@
     <table>
       <thead><tr><th>Date</th><th class="n">Bus</th><th>Km</th><th>Oil (L)</th><th class="n">Tyre No</th><th class="n">Note</th><th class="noprint"></th></tr></thead>
       <tbody id="rows"></tbody>
-      <tfoot><tr id="tot"></tr></tfoot>
     </table>
     </div>
   </div>
@@ -89,8 +87,6 @@ function render() {
     <td>${fmt(e.date)}</td><td class="n">${esc(e.bus || '-')}</td><td>${e.km}</td><td>${e.litres}</td>
     <td class="n">${esc(e.tierno || '')}</td><td class="n">${esc(e.note || '')}</td>
     <td class="noprint" style="white-space:nowrap"><button class="e" onclick="edit('${e._id}')">✏️</button><button class="x" onclick="del('${e._id}')">✕</button></td></tr>`).join('');
-  const km = list.reduce((a, e) => a + e.km, 0), l = list.reduce((a, e) => a + e.litres, 0);
-  $('tot').innerHTML = `<td>Total</td><td></td><td>${km.toFixed(1)}</td><td>${l.toFixed(2)}</td><td></td><td></td><td class="noprint"></td>`;
 }
 $('f').onsubmit = async ev => {
   ev.preventDefault();
