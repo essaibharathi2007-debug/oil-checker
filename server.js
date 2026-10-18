@@ -26,6 +26,10 @@ app.post('/api/entries', async (req, res) => {
   try { res.json(await Entry.create(req.body)); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
+app.put('/api/entries/:id', async (req, res) => {
+  try { res.json(await Entry.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
 app.delete('/api/entries/:id', async (req, res) => { await Entry.findByIdAndDelete(req.params.id); res.json({ ok: true }); });
 
 
