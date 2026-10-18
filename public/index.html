@@ -15,6 +15,7 @@
   form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
   label{font-size:13px;display:flex;flex-direction:column;gap:4px}
   input,select{padding:9px;font-size:16px;border:1px solid #bbb;border-radius:6px}
+  select{background:#fff}
   button{padding:10px 14px;font-size:15px;border:0;border-radius:6px;background:#1565c0;color:#fff;cursor:pointer}
   button.g{background:#2e7d32} button.x{background:#c62828;padding:4px 8px;font-size:12px}
   .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -25,12 +26,12 @@
   .scroll{overflow-x:auto}
   .ph{display:none}
   @media print{ body{background:#fff} .noprint{display:none} .card{box-shadow:none;padding:0} .ph{display:block} }
-  select{background:#fff}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>🚌 Bus Oil (Diesel) Log</h1>
+  <h1>🚌 SHRI HARI VELMURUGAN TRANSPORT</h1>
+  <h1>AMBASAMUDRAM</h1>
 
   <div class="card noprint">
     <form id="f">
@@ -38,6 +39,7 @@
       <label>பேருந்து எண் <select id="bus" required></select></label>
       <label>Km (கி.மீ) <input type="number" id="km" step="0.1" min="0" required></label>
       <label>Oil (லிட்டர்கள்) <input type="number" id="litres" step="0.01" min="0" required></label>
+      <label>TierNo (டயர் எண்) (optional) <input type="text" id="tierno"></label>
       <label>Note (optional) <input type="text" id="note"></label>
       <label>&nbsp;<button type="submit">➕ Save</button></label>
     </form>
@@ -52,7 +54,7 @@
     <div class="ph"><h2>Bus Oil Report - <span id="phBus"></span></h2></div>
     <div class="scroll">
     <table>
-      <thead><tr><th>Date</th><th class="n">Bus</th><th>Km</th><th>Oil (L)</th><th>Km/L</th><th class="n">Note</th><th class="noprint"></th></tr></thead>
+      <thead><tr><th>Date</th><th class="n">Bus</th><th>Km</th><th>Oil (L)</th><th class="n">Tyre No</th><th class="n">Note</th><th class="noprint"></th></tr></thead>
       <tbody id="rows"></tbody>
       <tfoot><tr id="tot"></tr></tfoot>
     </table>
@@ -60,19 +62,21 @@
   </div>
 </div>
 <script>
-// ===== Inga bus peyargalai maathikkalaam (10 bus) =====
-const BUSES = ['TN76 AV8974','TN76 AV8959 ','TN76 AV8957','TN76 AV8973','TN72 BZ6485'];
-
 const $ = id => document.getElementById(id);
+// ===== Bus numbers inga maathikkalaam =====
+const BUSES = ['TN76 AV8933','TN76 AV8934','TN76 AV8973','TN76 AV8974','TN72 BZ0662','TN72 BP6485','TN76 AV8957','TN76 AV8959','TN72 BZ5965(BS6)','TN 72 BZ5091(BS6E)'];
 let data = [];
 $('date').valueAsDate = new Date();
-$('bus').innerHTML = '<option value="">-- Select --</option>' + BUSES.map(b => `<option>${b}</option>`).join('');
-$('filter').innerHTML = '<option value="">All Buses</option>' + BUSES.map(b => `<option>${b}</option>`).join('');
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = d => d.split('-').reverse().join('-');
-const mileage = e => e.litres ? (e.km / e.litres).toFixed(2) : '-';
 const shown = () => data.filter(e => !$('filter').value || e.bus === $('filter').value);
+
+function loadBuses() {
+  const opts = BUSES.map(b => `<option>${esc(b)}</option>`).join('');
+  $('bus').innerHTML = '<option value="">-- Select --</option>' + opts;
+  $('filter').innerHTML = '<option value="">All Buses</option>' + opts;
+}
 
 async function load() {
   try { data = await (await fetch('/api/entries')).json(); } catch { alert('Server connect aagala'); }
@@ -83,17 +87,17 @@ function render() {
   $('phBus').textContent = $('filter').value || 'All Buses';
   $('rows').innerHTML = list.map(e => `<tr>
     <td>${fmt(e.date)}</td><td class="n">${esc(e.bus || '-')}</td><td>${e.km}</td><td>${e.litres}</td>
-    <td>${mileage(e)}</td><td class="n">${esc(e.note || '')}</td>
+    <td class="n">${esc(e.tierno || '')}</td><td class="n">${esc(e.note || '')}</td>
     <td class="noprint"><button class="x" onclick="del('${e._id}')">✕</button></td></tr>`).join('');
   const km = list.reduce((a, e) => a + e.km, 0), l = list.reduce((a, e) => a + e.litres, 0);
-  $('tot').innerHTML = `<td>Total</td><td></td><td>${km.toFixed(1)}</td><td>${l.toFixed(2)}</td><td>${l ? (km / l).toFixed(2) : '-'}</td><td></td><td class="noprint"></td>`;
+  $('tot').innerHTML = `<td>Total</td><td></td><td>${km.toFixed(1)}</td><td>${l.toFixed(2)}</td><td></td><td></td><td class="noprint"></td>`;
 }
 $('f').onsubmit = async ev => {
   ev.preventDefault();
-  const body = { date: $('date').value, bus: $('bus').value, km: +$('km').value, litres: +$('litres').value, note: $('note').value };
+  const body = { date: $('date').value, bus: $('bus').value, km: +$('km').value, litres: +$('litres').value, tierno: $('tierno').value, note: $('note').value };
   const r = await fetch('/api/entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return alert('Save aagala');
-  ['km', 'litres', 'note'].forEach(i => $(i).value = '');
+  ['km', 'litres', 'tierno', 'note'].forEach(i => $(i).value = '');
   load();
 };
 async function del(id) {
@@ -102,12 +106,13 @@ async function del(id) {
 }
 function downloadCSV() {
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const rows = [['Date', 'Bus', 'Km', 'Oil (L)', 'Km/L', 'Note'],
-    ...shown().map(e => [fmt(e.date), q(e.bus), e.km, e.litres, mileage(e), q(e.note)])];
+  const rows = [['Date', 'Bus', 'Km', 'Oil (L)', 'Tyre No', 'Note'],
+    ...shown().map(e => [fmt(e.date), q(e.bus), e.km, e.litres, q(e.tierno), q(e.note)])];
   const blob = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'bus-oil-log.csv'; a.click();
 }
+loadBuses();
 load();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
